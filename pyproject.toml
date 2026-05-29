@@ -1,0 +1,33 @@
+[build-system]
+requires = ["uv_build>=0.7.0,<0.11.0"]
+build-backend = "uv_build"
+
+[project]
+name = "compare-notebook-dir"
+version = "0.1.0"
+description = "Apply nbdiff to entire directories, reporting if there are differences between matching notebooks"
+authors = [
+    { name = "Miles Smith", email = "miles-smith@omrf.org" }
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "nbdime>=4.0.4",
+    "rich>=15.0.0",
+    "typer>=0.26.2",
+]
+license = "GPL-3.0-or-later"
+
+[project.scripts]
+compare-nb-dir = "compare_notebook_dir.__init__:compare_notebooks"
+
+[project.urls]
+homepage = "https://github.com/milescsmith/compare-notebook-dir"
+repository = "https://github.com/milescsmith/compare-notebook-dir"
+changelog = "https://github.com/milescsmith/compare-notebook-dir/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.14",
+]
