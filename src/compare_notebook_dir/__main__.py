@@ -14,6 +14,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from . import __version__
 from .logging import init_logger
 
 console = Console()
@@ -26,7 +27,23 @@ compare_notebooks = typer.Typer(
 )
 
 
-@compare_notebooks.command()
+def version_callback(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "-v",
+            "--version",
+            help="Show compare-notebook-dir version",
+        ),
+    ] = False,
+) -> None:  # FBT001
+    """Prints the version of the package."""
+    if version:
+        console.print(f"[yellow]compare-notebook-dir[/] version: [bold blue]{__version__}[/]")
+        raise typer.Exit()
+
+
+@compare_notebooks.command(no_args_is_help=True)
 def compare_notebook_dirs(
     path1: Annotated[
         Path,
@@ -55,6 +72,9 @@ def compare_notebook_dirs(
     ext: Annotated[str, typer.Option("--ext", "-e", help="file extension to search for")] = "ipynb",
     recursive: Annotated[bool, typer.Option("--rec", "-r", help="search folders recursively?")] = True,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Turn on logging")] = False,
+    version: Annotated[
+        bool, typer.Option("--version", help="Show version", callback=version_callback, is_eager=True)
+    ] = False,
 ):
     if verbose:
         init_logger(3, save=True)
@@ -89,6 +109,7 @@ def compare_notebook_dirs(
         TaskProgressColumn(),
         TimeRemainingColumn(),
         TextColumn("{task.description}"),
+        console=console,
     )
 
     progress.start()
@@ -99,7 +120,7 @@ def compare_notebook_dirs(
             progress.update(task, description=str(name), advance=1)
             # with console.capture() as capture:
             if name not in path2_found_notebooks.keys():
-                console.print(f"No matching file was found for {name!s}")
+                progress.console.print(f"No matching file was found for {name!s}")
             else:
                 logger.debug(f"Comparing {notebook1} to {path2_found_notebooks[name]}")
                 nb1 = read_notebook(notebook1, on_null="empty")
