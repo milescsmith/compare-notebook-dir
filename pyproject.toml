@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "compare-notebook-dir"
-version = "0.3.0"
+version = "0.4.0"
 description = "Apply nbdiff to entire directories, reporting if there are differences between matching notebooks"
 authors = [
     { name = "Miles Smith", email = "miles-smith@omrf.org" }
