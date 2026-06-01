@@ -74,7 +74,7 @@ def compare_notebook_dirs(
     ],
     ext: Annotated[str, typer.Option("--ext", "-e", help="file extension to search for")] = "ipynb",
     recursive: Annotated[bool, typer.Option("--rec", "-r", help="search folders recursively?")] = True,
-    web: Annotated[bool, typer.Option("--web", "-w", help="ask to view differences in web browser")] = False,
+    view: Annotated[bool, typer.Option("--view", "-w", help="ask to view differences in web browser")] = False,
     ignore_checkpoints: Annotated[
         bool, typer.Option("--no-checkpoints", "-n", help="Ignore all of the '*-checkpoint.ipynb files'")
     ] = False,
@@ -95,8 +95,13 @@ def compare_notebook_dirs(
         path1_search = path1.glob(f"*.{ext}")
         path2_search = path2.glob(f"*.{ext}")
 
-    path1_found_notebooks = {x.name: str(x) for x in path1_search}
-    path2_found_notebooks = {y.name: str(y) for y in path2_search}
+    if ignore_checkpoints:
+        path1_found_notebooks = {x.name: str(x) for x in path1_search if not x.name.endswith("-checkpoint.ipynb")}
+        path2_found_notebooks = {y.name: str(y) for y in path2_search if not y.name.endswith("-checkpoint.ipynb")}
+    else:
+        path1_found_notebooks = {x.name: str(x) for x in path1_search}
+        path2_found_notebooks = {y.name: str(y) for y in path2_search}
+
 
     logger.info(f"found {len(path1_found_notebooks)} at {path1}")
     logger.info(f"found {len(path2_found_notebooks)} at {path2}")
@@ -147,7 +152,7 @@ def compare_notebook_dirs(
             # output.append(capture.get())
     finally:
         progress.stop()
-    if web:
+    if view:
         for name, notebooks in mismatched.items():
             answer = Confirm.ask(
                 f"There were differences for [orange1]{name}[/orange1]. Would you like to examine them?",

@@ -1,3 +1,8 @@
+# [0.4.0] - 2026-06-01
+
+## Fixed
+- Actualy impolemented the `ignore_checkpoints` argument
+
 # [0.3.0] - 2026-06-01
 
 ## Added
@@ -17,6 +22,7 @@ difference.
 ## Added
 - Everything
 
+[0.4.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.3.0..0.4.0
 [0.3.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.1.0..0.2.0
 [0.1.0]: https://github.com/milescsmith/compare-notebook-dir/releases/tag/v0.1.0
