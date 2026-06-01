@@ -5,6 +5,8 @@ import typer
 from loguru import logger
 from nbdime.diffing.notebooks import diff_notebooks
 from nbdime.utils import read_notebook
+from nbdime.webapp.nbdimeserver import main_server
+from nbdime.webapp.webutil import browse
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -13,6 +15,7 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from rich.prompt import Confirm
 
 from . import __version__
 from .logging import init_logger
@@ -71,6 +74,10 @@ def compare_notebook_dirs(
     ],
     ext: Annotated[str, typer.Option("--ext", "-e", help="file extension to search for")] = "ipynb",
     recursive: Annotated[bool, typer.Option("--rec", "-r", help="search folders recursively?")] = True,
+    web: Annotated[bool, typer.Option("--web", "-w", help="ask to view differences in web browser")] = False,
+    ignore_checkpoints: Annotated[
+        bool, typer.Option("--no-checkpoints", "-n", help="Ignore all of the '*-checkpoint.ipynb files'")
+    ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Turn on logging")] = False,
     version: Annotated[
         bool, typer.Option("--version", help="Show version", callback=version_callback, is_eager=True)
@@ -114,6 +121,7 @@ def compare_notebook_dirs(
 
     progress.start()
     task = progress.add_task("[yellow]Comparing...[/yellow]", total=len(path1_found_notebooks))
+    mismatched = {}
     try:
         for name, notebook1 in path1_found_notebooks.items():
             # progress.console.print(f"Comparing [blue]{key!s}[/blue]", markup=True)
@@ -123,11 +131,15 @@ def compare_notebook_dirs(
                 progress.console.print(f"No matching file was found for {name!s}")
             else:
                 logger.debug(f"Comparing {notebook1} to {path2_found_notebooks[name]}")
+                notebook2 = path2_found_notebooks[name]
                 nb1 = read_notebook(notebook1, on_null="empty")
-                nb2 = read_notebook(path2_found_notebooks[name], on_null="empty")
+                nb2 = read_notebook(notebook2, on_null="empty")
                 result = diff_notebooks(nb1, nb2)
                 if len(result) > 0:
-                    progress.console.print(f"[bold red]Differences were found[/bold red] for {name}")
+                    progress.console.print(
+                        f":warning-emoji:[bold red1] Differences were found[/bold red1] for [orange1]{name}[/orange1] :warning-emoji:"
+                    )
+                    mismatched[name] = (notebook1, notebook2)
                     logger.info(f"the two {name} are different")
                 else:
                     progress.console.print(f"[bold green]No differences[/bold green] found for [blue]{name}[/blue]")
@@ -135,5 +147,21 @@ def compare_notebook_dirs(
             # output.append(capture.get())
     finally:
         progress.stop()
+    if web:
+        for name, notebooks in mismatched.items():
+            answer = Confirm.ask(
+                f"There were differences for [orange1]{name}[/orange1]. Would you like to examine them?",
+                console=console,
+            )
+            if answer:
+                main_server(
+                    on_port=lambda port, notebook1=notebooks[0], notebook2=notebooks[1]: browse(
+                        port=port,
+                        rel_url="diff",
+                        base=notebook1,
+                        remote=notebook2,
+                    ),
+                    closable=True,
+                )
     # for x in output:
     #     console.print(x, markup=True)
