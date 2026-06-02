@@ -1,7 +1,13 @@
+# [0.5.0] - 2026-06-01
+
+## Added
+- Handling of JSON decode errors - ignore bad files, continue comparisons
+- An optional final report of matched, mismatched, and missing notebooks
+
 # [0.4.0] - 2026-06-01
 
 ## Fixed
-- Actualy impolemented the `ignore_checkpoints` argument
+- Actualy impolemented the `--no-checkpoints` argument
 
 # [0.3.0] - 2026-06-01
 
@@ -22,6 +28,7 @@ difference.
 ## Added
 - Everything
 
+[0.5.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.4.0..0.5.0
 [0.4.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.3.0..0.4.0
 [0.3.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.1.0..0.2.0

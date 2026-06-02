@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Annotated
 
@@ -7,6 +8,7 @@ from nbdime.diffing.notebooks import diff_notebooks
 from nbdime.utils import read_notebook
 from nbdime.webapp.nbdimeserver import main_server
 from nbdime.webapp.webutil import browse
+from nbformat.reader import NotJSONError
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -16,6 +18,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.prompt import Confirm
+from rich.table import Table
 
 from . import __version__
 from .logging import init_logger
@@ -78,6 +81,13 @@ def compare_notebook_dirs(
     ignore_checkpoints: Annotated[
         bool, typer.Option("--no-checkpoints", "-n", help="Ignore all of the '*-checkpoint.ipynb files'")
     ] = False,
+    only_common: Annotated[bool, typer.Option("--common", "-c", help="Ignore missing notebooks.")] = False,
+    report: Annotated[
+        bool,
+        typer.Option(
+            "--report", "-p", help="Show a final report of what was the same, what differed, and what was missing"
+        ),
+    ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Turn on logging")] = False,
     version: Annotated[
         bool, typer.Option("--version", help="Show version", callback=version_callback, is_eager=True)
@@ -102,7 +112,6 @@ def compare_notebook_dirs(
         path1_found_notebooks = {x.name: str(x) for x in path1_search}
         path2_found_notebooks = {y.name: str(y) for y in path2_search}
 
-
     logger.info(f"found {len(path1_found_notebooks)} at {path1}")
     logger.info(f"found {len(path2_found_notebooks)} at {path2}")
 
@@ -124,35 +133,47 @@ def compare_notebook_dirs(
         console=console,
     )
 
+    # if only_common:
+    #     path1_exclusive = [_ for _ in path1_found_notebooks.keys() if _ not in path2_found_notebooks.keys()]
+    #     path2_exclusive = [_ for _ in path2_found_notebooks.keys() if _ not in path1_found_notebooks.keys()]
+
     progress.start()
     task = progress.add_task("[yellow]Comparing...[/yellow]", total=len(path1_found_notebooks))
     mismatched = {}
-    try:
-        for name, notebook1 in path1_found_notebooks.items():
-            # progress.console.print(f"Comparing [blue]{key!s}[/blue]", markup=True)
-            progress.update(task, description=str(name), advance=1)
-            # with console.capture() as capture:
-            if name not in path2_found_notebooks.keys():
-                progress.console.print(f"No matching file was found for {name!s}")
-            else:
-                logger.debug(f"Comparing {notebook1} to {path2_found_notebooks[name]}")
-                notebook2 = path2_found_notebooks[name]
+    for name, notebook1 in path1_found_notebooks.items():
+        # progress.console.print(f"Comparing [blue]{key!s}[/blue]", markup=True)
+        progress.update(task, description=str(name), advance=1)
+        # with console.capture() as capture:
+        if not only_common and (name not in path2_found_notebooks.keys()):
+            progress.console.print(f"No matching file was found for {name!s}")
+        else:
+            logger.debug(f"Comparing {notebook1} to {path2_found_notebooks[name]}")
+            notebook2 = path2_found_notebooks[name]
+            try:
                 nb1 = read_notebook(notebook1, on_null="empty")
+            except (JSONDecodeError, NotJSONError):
+                msg = f"[red1]{notebook1!s}[/] does not appear to be a valid notebook file!"
+                console.print(msg)
+                continue
+            try:
                 nb2 = read_notebook(notebook2, on_null="empty")
-                result = diff_notebooks(nb1, nb2)
-                if len(result) > 0:
-                    progress.console.print(
-                        f":warning-emoji:[bold red1] Differences were found[/bold red1] for [orange1]{name}[/orange1] :warning-emoji:"
-                    )
-                    mismatched[name] = (notebook1, notebook2)
-                    logger.info(f"the two {name} are different")
-                else:
-                    progress.console.print(f"[bold green]No differences[/bold green] found for [blue]{name}[/blue]")
-                    logger.debug(f"the two {name} match")
-            # output.append(capture.get())
-    finally:
-        progress.stop()
-    if view:
+            except (JSONDecodeError, NotJSONError):
+                msg = f"[red1]{notebook2!s}[/] does not appear to be a valid notebook file!"
+                console.print(msg)
+                continue
+            result = diff_notebooks(nb1, nb2)
+            if len(result) > 0:
+                progress.console.print(
+                    f":warning-emoji:[bold red1] Differences were found[/bold red1] for [orange1]{name}[/orange1] :warning-emoji:"
+                )
+                mismatched[name] = (notebook1, notebook2)
+                logger.info(f"the two {name} are different")
+            else:
+                progress.console.print(f"[bold #00AA00]No differences[/bold #00AA00] found for [blue]{name}[/blue]")
+                logger.debug(f"the two {name} match")
+    progress.stop()
+    if view and len(mismatched) > 0:
+        console.rule("[bold #55AAFF]Examine differences:")
         for name, notebooks in mismatched.items():
             answer = Confirm.ask(
                 f"There were differences for [orange1]{name}[/orange1]. Would you like to examine them?",
@@ -168,5 +189,21 @@ def compare_notebook_dirs(
                     ),
                     closable=True,
                 )
-    # for x in output:
-    #     console.print(x, markup=True)
+    if report:
+        table = Table()
+        table.add_column("Notebook", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Status", justify="center", style="cyan", no_wrap=True)
+        table.add_column("In path1:", justify="center", style="cyan", no_wrap=True)
+        table.add_column("In path2:", justify="center", style="cyan", no_wrap=True)
+
+        for notebook in path1_found_notebooks.keys():
+            if notebook in mismatched:
+                table.add_row(notebook, "[red1]differ[/red1]", "", "")
+            elif notebook in path2_found_notebooks.keys():
+                table.add_row(notebook, "[#00AA00]same[/#00AA00]", "", "")
+            else:
+                table.add_row(notebook, "", "", "[red1]missing[/red1]")
+        for notebook in path2_found_notebooks.keys():
+            if notebook not in path1_found_notebooks.keys():
+                table.add_row(notebook, "", "[red1]missing[/red1]", "")
+        console.print(table)
