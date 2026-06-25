@@ -260,10 +260,10 @@ def compare_notebook_dirs(
         table.add_column("Status", justify="center", style="cyan", no_wrap=True)
         table.add_column("Path1:", justify="center", style="cyan", no_wrap=True)
         table.add_column("Path2:", justify="center", style="cyan", no_wrap=True)
-        col2 = col3 = col4 = ""
 
         unique_notebook_names = {*path1_found_notebooks.keys(), *path2_found_notebooks.keys()}
         for notebook in unique_notebook_names:
+            col2 = col3 = col4 = ""
             if notebook in mismatched:
                 col2 = "[yellow1]differ[/yellow1]"
             elif notebook not in path1_found_notebooks.keys():

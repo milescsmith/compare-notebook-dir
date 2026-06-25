@@ -1,3 +1,8 @@
+# [0.6.1] - 202606-25
+
+## Fixed
+- Moved the reset table row reset string into the beginning of the loop so it actually resets the string
+
 # [0.6.0] - 2026-06-25
 
 ## Added
@@ -37,6 +42,7 @@ difference.
 ## Added
 - Everything
 
+[0.6.1]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.6.0..0.6.1
 [0.6.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.5.0..0.6.0
 [0.5.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.4.0..0.5.0
 [0.4.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.3.0..0.4.0
