@@ -1,3 +1,12 @@
+# [0.6.0] - 2026-06-25
+
+## Added
+- View diffs on the command line, though this is awkward and the display needs refinement
+- Option to delete one of the files after diff review
+
+## Changed
+- Changed the argument to view diffs via browser to `--web_view`
+
 # [0.5.0] - 2026-06-01
 
 ## Added
@@ -28,6 +37,7 @@ difference.
 ## Added
 - Everything
 
+[0.6.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.5.0..0.6.0
 [0.5.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.4.0..0.5.0
 [0.4.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.3.0..0.4.0
 [0.3.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.2.0..0.3.0
