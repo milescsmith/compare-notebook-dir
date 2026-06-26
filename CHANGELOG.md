@@ -1,4 +1,15 @@
-# [0.6.1] - 202606-25
+# [0.7.0] - 2026-06-26
+
+## Added
+- Added option at the end to remove all identical files in either the source or remote paths (I mean, we're here to find
+duplicates, right?)
+- Display the relative path of the notebooks (it *should* be the same between two matched notebooks)
+- Sorting of the final report table by the path and notebook name
+
+## Changed
+- Changed all terminology referring to "path1" and "path2" to "source" and "remote" paths to better match `nbdime`
+
+# [0.6.1] - 2026-06-25
 
 ## Fixed
 - Moved the reset table row reset string into the beginning of the loop so it actually resets the string
@@ -42,6 +53,7 @@ difference.
 ## Added
 - Everything
 
+[0.7.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.6.1..0.7.0
 [0.6.1]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.6.0..0.6.1
 [0.6.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.5.0..0.6.0
 [0.5.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.4.0..0.5.0

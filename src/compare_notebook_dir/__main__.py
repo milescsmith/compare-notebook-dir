@@ -14,13 +14,7 @@ from nbdime.webapp.nbdimeserver import main_server
 from nbdime.webapp.webutil import browse
 from nbformat.reader import NotJSONError
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn, track
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
@@ -82,7 +76,7 @@ def version_callback(
 # TODO: incorporate merging
 @compare_notebooks.command(no_args_is_help=True)
 def compare_notebook_dirs(
-    path1: Annotated[
+    source_path: Annotated[
         Path,
         typer.Argument(
             exists=True,
@@ -94,7 +88,7 @@ def compare_notebook_dirs(
             help="Directory to compare against.",
         ),
     ],
-    path2: Annotated[
+    remote_path: Annotated[
         Path,
         typer.Argument(
             exists=True,
@@ -131,27 +125,31 @@ def compare_notebook_dirs(
         init_logger(0)
 
     if recursive:
-        path1_search = path1.glob(f"**/*.{ext}")
-        path2_search = path2.glob(f"**/*.{ext}")
+        source_path_search = source_path.glob(f"**/*.{ext}")
+        remote_path_search = remote_path.glob(f"**/*.{ext}")
     else:
-        path1_search = path1.glob(f"*.{ext}")
-        path2_search = path2.glob(f"*.{ext}")
+        source_path_search = source_path.glob(f"*.{ext}")
+        remote_path_search = remote_path.glob(f"*.{ext}")
 
     if ignore_checkpoints:
-        path1_found_notebooks = {x.name: x for x in path1_search if not x.name.endswith("-checkpoint.ipynb")}
-        path2_found_notebooks = {y.name: y for y in path2_search if not y.name.endswith("-checkpoint.ipynb")}
+        source_path_found_notebooks = {
+            x.name: x for x in source_path_search if not x.name.endswith("-checkpoint.ipynb")
+        }
+        remote_path_found_notebooks = {
+            y.name: y for y in remote_path_search if not y.name.endswith("-checkpoint.ipynb")
+        }
     else:
-        path1_found_notebooks = {x.name: x for x in path1_search}
-        path2_found_notebooks = {y.name: y for y in path2_search}
+        source_path_found_notebooks = {x.name: x for x in source_path_search}
+        remote_path_found_notebooks = {y.name: y for y in remote_path_search}
 
-    logger.info(f"found {len(path1_found_notebooks)} at {path1}")
-    logger.info(f"found {len(path2_found_notebooks)} at {path2}")
+    logger.info(f"found {len(source_path_found_notebooks)} at {source_path}")
+    logger.info(f"found {len(remote_path_found_notebooks)} at {remote_path}")
 
     logger.debug(
-        f"{[k for k in path1_found_notebooks.keys() if k not in path2_found_notebooks.keys()]} are exclusive to path1"
+        f"{[k for k in source_path_found_notebooks.keys() if k not in remote_path_found_notebooks.keys()]} are exclusive to the source"
     )
     logger.debug(
-        f"{[k for k in path2_found_notebooks.keys() if k not in path1_found_notebooks.keys()]} are exclusive to path2"
+        f"{[k for k in remote_path_found_notebooks.keys() if k not in source_path_found_notebooks.keys()]} are exclusive to remote"
     )
     progress = Progress(
         "[yellow]Comparing...[/yellow]",
@@ -163,15 +161,15 @@ def compare_notebook_dirs(
     )
 
     progress.start()
-    task = progress.add_task("[yellow]Comparing...[/yellow]", total=len(path1_found_notebooks))
+    task = progress.add_task("[yellow]Comparing...[/yellow]", total=len(source_path_found_notebooks))
     mismatched = {}
-    for name, notebook1 in path1_found_notebooks.items():
+    for name, notebook1 in source_path_found_notebooks.items():
         progress.update(task, description=f"Reading {name!s}", advance=0)
-        if not only_common and (name not in path2_found_notebooks.keys()):
+        if not only_common and (name not in remote_path_found_notebooks.keys()):
             progress.console.print(f"No matching file was found for {name!s}")
         else:
-            logger.debug(f"Comparing {notebook1!s} to {path2_found_notebooks[name]!s}")
-            notebook2 = path2_found_notebooks[name]
+            logger.debug(f"Comparing {notebook1!s} to {remote_path_found_notebooks[name]!s}")
+            notebook2 = remote_path_found_notebooks[name]
             try:
                 nb1 = read_notebook(str(notebook1), on_null="empty")
             except (JSONDecodeError, NotJSONError):
@@ -256,27 +254,62 @@ def compare_notebook_dirs(
 
     if report:
         table = Table()
-        table.add_column("Notebook", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Status", justify="center", style="cyan", no_wrap=True)
-        table.add_column("Path1:", justify="center", style="cyan", no_wrap=True)
-        table.add_column("Path2:", justify="center", style="cyan", no_wrap=True)
+        table.add_column("[bold sky_blue3]Relative path:[/]", justify="left", style="cyan", no_wrap=False)
+        table.add_column("[bold orange1]Notebook:[/]", justify="left", style="cyan", no_wrap=True)
+        table.add_column("[bold bright_yellow]Status:[/]", justify="center", style="cyan", no_wrap=True)
+        table.add_column("[bold bright_magenta]Source:[/]", justify="center", style="cyan", no_wrap=True)
+        table.add_column("[bold green]Remote:[/]", justify="center", style="cyan", no_wrap=True)
 
-        unique_notebook_names = {*path1_found_notebooks.keys(), *path2_found_notebooks.keys()}
+        unique_notebook_names = {*source_path_found_notebooks.keys(), *remote_path_found_notebooks.keys()}
+        identical = []
+        table_rows = []
+        # TODO: refactor this into a func
         for notebook in unique_notebook_names:
-            col2 = col3 = col4 = ""
+            diff_status = source_status = remote_status = ""
             if notebook in mismatched:
-                col2 = "[yellow1]differ[/yellow1]"
-            elif notebook not in path1_found_notebooks.keys():
-                col3 = "[red1]missing[/red1]"
-            elif notebook not in path2_found_notebooks.keys():
-                col4 = "[red1]missing[/red1]"
+                diff_status = "[yellow1]differ[/yellow1]"
+            elif notebook not in source_path_found_notebooks.keys():
+                source_status = "[red1]missing[/red1]"
+                notebook_rel_path = remote_path_found_notebooks[notebook].relative_to(remote_path)
+            elif notebook not in remote_path_found_notebooks.keys():
+                remote_status = "[red1]missing[/red1]"
+                notebook_rel_path = source_path_found_notebooks[notebook].relative_to(source_path)
             else:
-                col2 = "[#00AA00]same[/#00AA00]"
+                diff_status = "[#00AA00]same[/#00AA00]"
+                identical.append(notebook)
 
             if notebook in deleted_notebooks1:
-                col3 = "[orange_red1]deleted[/orange_red1]"
+                source_status = "[orange_red1]deleted[/orange_red1]"
             elif notebook in deleted_notebooks2:
-                col4 = "[orange_red1]deleted[/orange_red1]"
+                remote_status = "[orange_red1]deleted[/orange_red1]"
 
-            table.add_row(notebook, col2, col3, col4)
+            table_rows.append(
+                (
+                    f"[sky_blue3]{notebook_rel_path.parent!s}/[/]",
+                    f"[orange1]{notebook_rel_path.name!s}[/orange1]",
+                    diff_status,
+                    source_status,
+                    remote_status,
+                )
+            )
+
+        table_rows.sort()
+        for _ in table_rows:
+            table.add_row(*_)
+
         console.print(table)
+
+        remove_which = Prompt.ask(
+            prompt="For those files which were identical, would you like to remove the [bright_magenta]source[/], [green]remote[/], or [dark_goldenrod]keep[/] both?",
+            choices=["source", "remote", "keep"],
+            default="keep",
+        )
+        match remove_which:
+            case "source":
+                for x in track(identical):
+                    source_path_found_notebooks[x].unlink()
+            case "remote":
+                for x in track(identical):
+                    remote_path_found_notebooks[x].unlink()
+            case "keep":
+                console.print("Kept both sets")
