@@ -1,3 +1,16 @@
+# [0.8.0] - 2026-06-29
+
+## Changed
+- Removed the `--view` and `--web-view` options and now instead ask when a difference is found if the user would like to
+view it on the command line or in the web view
+- Redid how we call `nbdiff-web`
+- renamed the `--rec` parameter `--recursive`
+- Changed a few colors around
+- "Upgraded" the report table formatting
+
+## Fixed
+- Made the default value for `--recursive` `False` so that it actually behaves properly as a flag value
+
 # [0.7.0] - 2026-06-26
 
 ## Added
@@ -53,6 +66,7 @@ difference.
 ## Added
 - Everything
 
+[0.8.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.7.0..0.8.0
 [0.7.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.6.1..0.7.0
 [0.6.1]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.6.0..0.6.1
 [0.6.0]: https://github.com/milescsmith/compare-notebook-dir/releases/releases/compare/0.5.0..0.6.0
